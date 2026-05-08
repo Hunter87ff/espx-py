@@ -15,6 +15,10 @@ Typed Python wrapper for the ESPX server.
 pip install -e ./python
 ```
 
+```bash
+uv pip install git+https://github.com/hunter87ff/espx-py.git
+```
+
 ## Quick example
 
 ```python
