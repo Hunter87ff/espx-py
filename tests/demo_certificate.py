@@ -10,7 +10,7 @@ from espx.models import CertificateData, CertificateSocial
 def main():
     # The server is running on localhost:8001
     # Note: Adding a dummy access_token since generate_url requires authentication
-    client = ESPXClient(base_url="http://localhost:8001", access_token="sprucepointtable87")
+    client = ESPXClient(base_url="https://api.espx.tech", access_token="your-access-token") # Replace with actual token for production or testing
 
     # Demo certificate data
     data = CertificateData(

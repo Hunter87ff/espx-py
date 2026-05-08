@@ -8,8 +8,8 @@ from espx.models import (
 
 def main():
     # Configuration
-    BASE_URL = "http://localhost:8001"
-    ACCESS_TOKEN = "sprucepointtable87" # Usually provided in server config or env
+    BASE_URL = "https://api.espx.tech"
+    ACCESS_TOKEN = "your-access-token" # Replace with actual token for production or testing
 
     # Initialize Client
     client = ESPXClient(base_url=BASE_URL, access_token=ACCESS_TOKEN)
