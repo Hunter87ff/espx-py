@@ -1,3 +1,4 @@
+import asyncio
 import os
 from espx import ESPXClient
 from espx.models import (
@@ -6,13 +7,10 @@ from espx.models import (
     LeaderboardSocial
 )
 
-def main():
+async def main() -> None:
     # Configuration
-    BASE_URL = "https://api.espx.tech"
-    ACCESS_TOKEN = "your-access-token" # Replace with actual token for production or testing
-
-    # Initialize Client
-    client = ESPXClient(base_url=BASE_URL, access_token=ACCESS_TOKEN)
+    BASE_URL = "http://localhost:8001"
+    ACCESS_TOKEN = "sprucepointtable87" # Usually provided in server config or env
 
     # Demo Team Data from leaderboard.ts
     team_data = [
@@ -60,19 +58,18 @@ def main():
         )
     )
 
-    print("Generating demo leaderboard...")
-    try:
-        # Generate as raw bytes (image)
-        result = client.leaderboards.br.generate(payload, raw=False)
-        
-        # Save to file
-        output_path = "demo_leaderboard.png"
-        with open(output_path, "wb") as f:
-            f.write(result.require_content())
-        
-        print(f"Successfully generated pointtable: {os.path.abspath(output_path)}")
-    except Exception as e:
-        print(f"Error generating leaderboard: {e}")
+    async with ESPXClient(base_url=BASE_URL, access_token=ACCESS_TOKEN) as client:
+        print("Generating demo leaderboard...")
+        try:
+            result = await client.leaderboards.br.generate(payload, raw=True)
+
+            output_path = "demo_leaderboard.png"
+            with open(output_path, "wb") as f:
+                f.write(result.require_content())
+
+            print(f"Successfully generated pointtable: {os.path.abspath(output_path)}")
+        except Exception as e:
+            print(f"Error generating leaderboard: {e}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

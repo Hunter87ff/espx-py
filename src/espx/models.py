@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
-from typing import Any, Literal
-
+from typing import Any, Literal, TYPE_CHECKING
 from .exceptions import ESPXResponseError
+
+if TYPE_CHECKING:
+    from .client import ESPXClient
 
 CertificateTemplateId = Literal["premium_blackyellow"]
 LeaderboardTemplateId = Literal[
@@ -98,6 +100,17 @@ class CertificateTemplate:
             name=str(obj["name"]),
             premium=bool(obj["premium"]),
         )
+    
+
+    @classmethod
+    async def get_templates(cls, client: ESPXClient) -> list[CertificateTemplate]:
+        response = await client._transport.get_json("/v1/certificates/templates")
+        if not isinstance(response, list):
+            raise ESPXResponseError(
+                "Expected certificate templates response to be a list.",
+                payload=response,
+            )
+        return [cls.from_dict(item) for item in response]
 
 
 @dataclass(slots=True)
@@ -161,6 +174,17 @@ class LeaderboardTemplate:
                 else None
             ),
         )
+    
+
+    @classmethod
+    async def get_templates(cls, client: ESPXClient) -> list[LeaderboardTemplate]:
+        response = await client._transport.get_json("/v1/leaderboards/templates")
+        if not isinstance(response, list):
+            raise ESPXResponseError(
+                "Expected leaderboard templates response to be a list.",
+                payload=response,
+            )
+        return [cls.from_dict(item) for item in response]
 
 
 @dataclass(slots=True)

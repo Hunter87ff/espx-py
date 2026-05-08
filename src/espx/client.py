@@ -17,8 +17,8 @@ from .models import (
 class CertificateAPI:
     _transport: HttpTransport
 
-    def list_templates(self) -> list[CertificateTemplate]:
-        data = self._transport.get_json("/certificate/templates")
+    async def list_templates(self) -> list[CertificateTemplate]:
+        data = await self._transport.get_json("/certificate/templates")
         if not isinstance(data, list):
             raise self._transport.response_error(
                 "Expected a list of certificate templates.",
@@ -26,8 +26,8 @@ class CertificateAPI:
             )
         return [CertificateTemplate.from_dict(item) for item in data]
 
-    def get_template(self, template_id: str) -> CertificateTemplate:
-        data = self._transport.get_json(
+    async def get_template(self, template_id: str) -> CertificateTemplate:
+        data = await self._transport.get_json(
             f"/certificate/templates?{urlencode({'id': template_id})}"
         )
         if not isinstance(data, dict):
@@ -37,7 +37,7 @@ class CertificateAPI:
             )
         return CertificateTemplate.from_dict(data)
 
-    def generate(
+    async def generate(
         self,
         payload: CertificateData,
         *,
@@ -46,14 +46,14 @@ class CertificateAPI:
     ) -> GeneratedAsset:
         query = urlencode({"template": template_id, "raw": int(raw)})
         if raw:
-            content = self._transport.post_bytes(
+            content = await self._transport.post_bytes(
                 f"/certificate/generate?{query}",
                 json_body=payload,
                 require_auth=True,
             )
             return GeneratedAsset(content=content, content_type="image/png")
 
-        data = self._transport.post_json(
+        data = await self._transport.post_json(
             f"/certificate/generate?{query}",
             json_body=payload,
             require_auth=True,
@@ -65,21 +65,22 @@ class CertificateAPI:
             )
         return GeneratedAsset(url=data)
 
-    def generate_url(
+    async def generate_url(
         self,
         payload: CertificateData,
         *,
         template_id: str = "premium_blackyellow",
     ) -> str | None:
-        return self.generate(payload, template_id=template_id, raw=False).url
+        asset = await self.generate(payload, template_id=template_id, raw=False)
+        return asset.url
 
-    def render_image(
+    async def render_image(
         self,
         payload: CertificateData,
         *,
         template_id: str = "premium_blackyellow",
     ) -> bytes:
-        asset = self.generate(payload, template_id=template_id, raw=True)
+        asset = await self.generate(payload, template_id=template_id, raw=True)
         return asset.require_content()
 
 
@@ -87,7 +88,7 @@ class CertificateAPI:
 class BattleRoyaleLeaderboardAPI:
     _transport: HttpTransport
 
-    def list_templates(
+    async def list_templates(
         self,
         *,
         game: str | None = None,
@@ -103,7 +104,7 @@ class BattleRoyaleLeaderboardAPI:
         if params:
             path = f"{path}?{urlencode(params)}"
 
-        data = self._transport.get_json(path, require_auth=True)
+        data = await self._transport.get_json(path, require_auth=True)
         raw_templates = data.get("templates", data) if isinstance(data, dict) else data
         if not isinstance(raw_templates, list):
             raise self._transport.response_error(
@@ -112,7 +113,7 @@ class BattleRoyaleLeaderboardAPI:
             )
         return [LeaderboardTemplate.from_dict(item) for item in raw_templates]
 
-    def generate(
+    async def generate(
         self,
         payload: BRLeaderboardPayload,
         *,
@@ -125,14 +126,14 @@ class BattleRoyaleLeaderboardAPI:
         query = urlencode(params)
 
         if raw or send_image:
-            content = self._transport.post_bytes(
+            content = await self._transport.post_bytes(
                 f"/leaderboard/br/generate?{query}",
                 json_body=payload,
                 require_auth=True,
             )
             return GeneratedAsset(content=content, content_type="image/png")
 
-        data = self._transport.post_json(
+        data = await self._transport.post_json(
             f"/leaderboard/br/generate?{query}",
             json_body=payload,
             require_auth=True,
@@ -150,11 +151,12 @@ class BattleRoyaleLeaderboardAPI:
             )
         return GeneratedAsset(url=url)
 
-    def generate_url(self, payload: BRLeaderboardPayload) -> str | None:
-        return self.generate(payload).url
+    async def generate_url(self, payload: BRLeaderboardPayload) -> str | None:
+        asset = await self.generate(payload)
+        return asset.url
 
-    def render_image(self, payload: BRLeaderboardPayload) -> bytes:
-        asset = self.generate(payload, raw=True)
+    async def render_image(self, payload: BRLeaderboardPayload) -> bytes:
+        asset = await self.generate(payload, raw=True)
         return asset.require_content()
 
 
@@ -183,11 +185,17 @@ class ESPXClient:
             br=BattleRoyaleLeaderboardAPI(self._transport)
         )
 
-    def close(self) -> None:
-        self._transport.close()
+    async def close(self) -> None:
+        await self._transport.close()
 
     def __enter__(self) -> ESPXClient:
-        return self
+        raise TypeError("ESPXClient is async-only. Use 'async with ESPXClient(...)'.")
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        self.close()
+        return None
+
+    async def __aenter__(self) -> ESPXClient:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.close()

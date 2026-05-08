@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
-from urllib.request import OpenerDirector, Request, build_opener
+
+import aiohttp
 
 from .exceptions import (
     ESPXAuthenticationError,
@@ -26,34 +27,40 @@ class HttpTransport:
     access_token: str | None = None
     timeout: float = 30.0
     user_agent: str = "espx-python/0.1.0"
-    _opener: OpenerDirector = None #type: ignore[assignment]
+    _session: aiohttp.ClientSession | None = None
 
     def __post_init__(self) -> None:
         if not self.base_url:
             raise ESPXConfigurationError("base_url is required.")
         normalized = self.base_url.rstrip("/") + "/"
         object.__setattr__(self, "base_url", normalized)
-        object.__setattr__(self, "_opener", build_opener())
 
-    @property
-    def opener(self) -> OpenerDirector:
-        return self._opener
+    async def _get_session(self) -> aiohttp.ClientSession:
+        session = self._session
+        if session is None or session.closed:
+            session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            )
+            object.__setattr__(self, "_session", session)
+        return session
 
-    def close(self) -> None:
-        return None
+    async def close(self) -> None:
+        session = self._session
+        if session is not None and not session.closed:
+            await session.close()
 
-    def get_json(self, path: str, *, require_auth: bool = False) -> Any:
-        body = self._request("GET", path, require_auth=require_auth)
+    async def get_json(self, path: str, *, require_auth: bool = False) -> Any:
+        body = await self._request("GET", path, require_auth=require_auth)
         return self._decode_json(body)
 
-    def post_json(
+    async def post_json(
         self,
         path: str,
         *,
         json_body: Any,
         require_auth: bool = False,
     ) -> Any:
-        body = self._request(
+        body = await self._request(
             "POST",
             path,
             json_body=json_body,
@@ -61,14 +68,14 @@ class HttpTransport:
         )
         return self._decode_json(body)
 
-    def post_bytes(
+    async def post_bytes(
         self,
         path: str,
         *,
         json_body: Any,
         require_auth: bool = False,
     ) -> bytes:
-        return self._request(
+        return await self._request(
             "POST",
             path,
             json_body=json_body,
@@ -83,7 +90,7 @@ class HttpTransport:
     ) -> ESPXResponseError:
         return ESPXResponseError(message, payload=payload)
 
-    def _request(
+    async def _request(
         self,
         method: str,
         path: str,
@@ -106,16 +113,18 @@ class HttpTransport:
             body = json.dumps(to_payload(json_body)).encode("utf-8")
 
         url = urljoin(self.base_url, path.lstrip("/"))
-        request = Request(url, data=body, headers=headers, method=method)
+        session = await self._get_session()
 
         try:
-            with self.opener.open(request, timeout=self.timeout) as response:
-                return response.read()
-        except HTTPError as exc:
-            payload = exc.read()
-            raise self._map_http_error(exc.code, payload) from exc
-        except URLError as exc:
-            raise ESPXTransportError(str(exc.reason)) from exc
+            async with session.request(method, url, data=body, headers=headers) as response:
+                payload = await response.read()
+                if response.status >= 400:
+                    raise self._map_http_error(response.status, payload)
+                return payload
+        except aiohttp.ClientError as exc:
+            raise ESPXTransportError(str(exc)) from exc
+        except asyncio.TimeoutError as exc:
+            raise ESPXTransportError("The request timed out.") from exc
         except OSError as exc:
             raise ESPXTransportError(str(exc)) from exc
 
