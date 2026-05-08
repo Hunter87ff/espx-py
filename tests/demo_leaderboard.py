@@ -10,7 +10,7 @@ from espx.models import (
 async def main() -> None:
     # Configuration
     BASE_URL = "http://localhost:8001"
-    ACCESS_TOKEN = "sprucepointtable87" # Usually provided in server config or env
+    ACCESS_TOKEN = "testing-demo-token" # Usually provided in server config or env
 
     # Demo Team Data from leaderboard.ts
     team_data = [

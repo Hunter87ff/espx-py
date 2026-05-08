@@ -13,7 +13,7 @@ async def main() -> None:
     # Note: Adding a dummy access_token since generate_url requires authentication
     async with ESPXClient(
         base_url="http://localhost:8001",
-        access_token="sprucepointtable87",
+        access_token="testing-demo-token",
     ) as client:
         # Demo certificate data
         data = CertificateData(
