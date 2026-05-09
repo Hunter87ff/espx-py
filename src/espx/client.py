@@ -12,8 +12,9 @@ from .models import (
     BRLeaderboardPayload,
 )
 
-__leaderboard_templates_cache : dict[str, list[LeaderboardTemplate]] = {}
-__certificate_templates_cache : dict[str, CertificateTemplate] = {}
+class TemplateCache:
+    _lb_template_cache : dict[str, list[LeaderboardTemplate]] = {}
+    _cert_template_cache : dict[str, CertificateTemplate] = {}
 
 
 @dataclass(slots=True)
@@ -21,8 +22,8 @@ class CertificateAPI:
     _transport: HttpTransport
 
     async def list_templates(self) -> list[CertificateTemplate]:
-        if __certificate_templates_cache:
-            return list(__certificate_templates_cache.values())
+        if TemplateCache._cert_template_cache:
+            return list(TemplateCache._cert_template_cache.values())
         
         data = await self._transport.get_json("/certificate/templates")
         if not isinstance(data, list):
@@ -32,12 +33,12 @@ class CertificateAPI:
             )
         _templates = [CertificateTemplate.from_dict(item) for item in data]
         for template in _templates:
-            __certificate_templates_cache[template.id] = template
+            TemplateCache._cert_template_cache[template.id] = template
         return _templates
 
 
     async def get_template(self, template_id: str) -> CertificateTemplate:
-        _existing = __certificate_templates_cache.get(template_id)
+        _existing = TemplateCache._cert_template_cache.get(template_id)
         if _existing is not None:
             return _existing
         
@@ -50,7 +51,7 @@ class CertificateAPI:
                 payload=data,
             )
         _template = CertificateTemplate.from_dict(data)
-        __certificate_templates_cache[template_id] = _template
+        TemplateCache._cert_template_cache[template_id] = _template
         return _template
     
 
@@ -118,7 +119,7 @@ class BattleRoyaleLeaderboardAPI:
             params["teams"] = teams
 
         _query = urlencode(params)
-        _existing = __leaderboard_templates_cache.get(_query)
+        _existing = TemplateCache._lb_template_cache.get(_query)
         if _existing is not None:
             return _existing
         
@@ -136,7 +137,7 @@ class BattleRoyaleLeaderboardAPI:
         _templates = [
             LeaderboardTemplate.from_dict(item) for item in raw_templates
         ]
-        __leaderboard_templates_cache[_query] = _templates
+        TemplateCache._lb_template_cache[_query] = _templates
         return _templates
 
     async def generate(
