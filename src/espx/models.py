@@ -101,7 +101,14 @@ class CertificateTemplate:
             premium=bool(obj["premium"]),
         )
     
-
+    @classmethod
+    def default_template(cls) -> CertificateTemplate:
+        return cls(
+            id="premium_blackyellow",
+            name="Premium BlackYellow",
+            premium=True,
+        )
+    
     @classmethod
     async def get_templates(cls, client: ESPXClient) -> list[CertificateTemplate]:
         response = await client._transport.get_json("/v1/certificates/templates")
@@ -223,6 +230,16 @@ class LeaderboardTemplate:
                 if obj.get("support_team_logo") is not None
                 else None
             ),
+        )
+    
+
+    @classmethod
+    def default_template(cls) -> LeaderboardTemplate:
+        return cls(
+            id="primary1_bluewhite",
+            name="Primary 1 BlueWhite",
+            max_teams=16,
+            games=["bgmi", "pubg", "freefire"],
         )
     
 
