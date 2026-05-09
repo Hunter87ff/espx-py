@@ -12,21 +12,35 @@ from .models import (
     BRLeaderboardPayload,
 )
 
+__leaderboard_templates_cache : dict[str, list[LeaderboardTemplate]] = {}
+__certificate_templates_cache : dict[str, CertificateTemplate] = {}
+
 
 @dataclass(slots=True)
 class CertificateAPI:
     _transport: HttpTransport
 
     async def list_templates(self) -> list[CertificateTemplate]:
+        if __certificate_templates_cache:
+            return list(__certificate_templates_cache.values())
+        
         data = await self._transport.get_json("/certificate/templates")
         if not isinstance(data, list):
             raise self._transport.response_error(
                 "Expected a list of certificate templates.",
                 payload=data,
             )
-        return [CertificateTemplate.from_dict(item) for item in data]
+        _templates = [CertificateTemplate.from_dict(item) for item in data]
+        for template in _templates:
+            __certificate_templates_cache[template.id] = template
+        return _templates
+
 
     async def get_template(self, template_id: str) -> CertificateTemplate:
+        _existing = __certificate_templates_cache.get(template_id)
+        if _existing is not None:
+            return _existing
+        
         data = await self._transport.get_json(
             f"/certificate/templates?{urlencode({'id': template_id})}"
         )
@@ -35,7 +49,10 @@ class CertificateAPI:
                 "Expected a certificate template object.",
                 payload=data,
             )
-        return CertificateTemplate.from_dict(data)
+        _template = CertificateTemplate.from_dict(data)
+        __certificate_templates_cache[template_id] = _template
+        return _template
+    
 
     async def generate(
         self,
@@ -100,6 +117,11 @@ class BattleRoyaleLeaderboardAPI:
         if teams is not None:
             params["teams"] = teams
 
+        _query = urlencode(params)
+        _existing = __leaderboard_templates_cache.get(_query)
+        if _existing is not None:
+            return _existing
+        
         path = "/leaderboard/br/templates"
         if params:
             path = f"{path}?{urlencode(params)}"
@@ -111,7 +133,11 @@ class BattleRoyaleLeaderboardAPI:
                 "Expected a list of leaderboard templates.",
                 payload=data,
             )
-        return [LeaderboardTemplate.from_dict(item) for item in raw_templates]
+        _templates = [
+            LeaderboardTemplate.from_dict(item) for item in raw_templates
+        ]
+        __leaderboard_templates_cache[_query] = _templates
+        return _templates
 
     async def generate(
         self,

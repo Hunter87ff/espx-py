@@ -23,3 +23,7 @@ __all__ = [
     "ESPXTransportError",
     "ESPXValidationError",
 ]
+
+
+__author__ = "Hunter87"
+__version__ = "0.1.0"
