@@ -75,14 +75,14 @@ class CertificateSocial:
 
 @dataclass(slots=True)
 class CertificateData:
-    organizer: str
-    eventname: str
-    date: str
-    certificateno: str
     name: str
     rank: int
+    organizer: str
+    eventname: str
+    date: str | None = None
     orglogo: str | None = None
     signature: str | None = None
+    certificateno: str | None = None
     social: CertificateSocial | None = None
 
 
@@ -142,6 +142,56 @@ class BRLeaderboardPayload:
     organizer: str
     eventname: str
     social: LeaderboardSocial = field(default_factory=LeaderboardSocial)
+
+
+    @classmethod
+    def from_dict(cls, data: Any) -> BRLeaderboardPayload:
+        obj = _coerce_dict(data, context="leaderboard payload")
+        template = str(obj["template"])
+        if template not in KNOWN_LEADERBOARD_TEMPLATE_IDS:
+            raise ESPXResponseError(
+                f"Unknown leaderboard template ID: {template}",
+                payload=data,
+            )
+        teams_data = obj.get("teams", [])
+        if not isinstance(teams_data, list):
+            raise ESPXResponseError(
+                "Expected leaderboard teams to be a list.",
+                payload=data,
+            )
+        teams = []
+        for item in teams_data:
+            team_obj = _coerce_dict(item, context="leaderboard team")
+            teams.append(LeaderboardRow(
+                rank=team_obj.get("rank"),
+                name=team_obj.get("name"),
+                matches=team_obj.get("matches"),
+                wins=team_obj.get("wins"),
+                pos_pts=team_obj.get("pos_pts"),
+                kill_pts=team_obj.get("kill_pts"),
+                total_pts=team_obj.get("total_pts"),
+                logo=team_obj.get("logo"),
+                image=team_obj.get("image"),
+                icon=team_obj.get("icon"),
+            ))
+        social_data = obj.get("social", {})
+        if not isinstance(social_data, dict):
+            raise ESPXResponseError(
+                "Expected leaderboard social to be a JSON object.",
+                payload=data,
+            )
+        return BRLeaderboardPayload(
+            template=template,
+            teams=teams,
+            organizer=str(obj["organizer"]),
+            eventname=str(obj["eventname"]),
+            social=LeaderboardSocial(
+                twitter=social_data.get("twitter"),
+                instagram=social_data.get("instagram"),
+                facebook=social_data.get("facebook"),
+                youtube=social_data.get("youtube"),
+            )
+        )
 
 
 @dataclass(slots=True)
